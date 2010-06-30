@@ -79,10 +79,10 @@ class RequestHandler(object):
     """
     SUPPORTED_METHODS = ("GET", "HEAD", "POST", "DELETE", "PUT")
 
-    def __init__(self, application, request, transforms=None,coding='utf-8'):
+    def __init__(self, application, request, transforms=None):
         self.application = application
         self.request = request
-        self.coding=coding
+        self.coding=application.coding
         self._headers_written = False
         self._finished = False
         self._auto_finish = True
@@ -936,7 +936,7 @@ class Application(object):
     and we will serve /favicon.ico and /robots.txt from the same directory.
     """
     def __init__(self, handlers=None, default_host="", transforms=None,
-                 wsgi=False, **settings):
+                 wsgi=False,coding='utf-8', **settings):
         if transforms is None:
             self.transforms = []
             if settings.get("gzip"):
@@ -950,6 +950,7 @@ class Application(object):
         self.settings = settings
         self.ui_modules = {}
         self.ui_methods = {}
+        self.coding=coding
         self._wsgi = wsgi
         self._load_ui_modules(settings.get("ui_modules", {}))
         self._load_ui_methods(settings.get("ui_methods", {}))
