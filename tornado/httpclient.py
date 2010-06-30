@@ -512,19 +512,19 @@ class HTTPRequest(object):
                  max_redirects=5, user_agent=None, use_gzip=True,
                  network_interface=None, streaming_callback=None,
                  header_callback=None, prepare_curl_callback=None,
-                 allow_nonstandard_methods=False):
+                 allow_nonstandard_methods=False,encoding='utf-8'):
         if if_modified_since:
             timestamp = calendar.timegm(if_modified_since.utctimetuple())
             headers["If-Modified-Since"] = email.utils.formatdate(
                 timestamp, localtime=False, usegmt=True)
         if "Pragma" not in headers:
             headers["Pragma"] = ""
-        self.url = _utf8(url)
+        self.url = _encode(url,codec=encoding)
         self.method = method
         self.headers = headers
         self.body = body
-        self.auth_username = _utf8(auth_username)
-        self.auth_password = _utf8(auth_password)
+        self.auth_username = _encode(auth_username,codec=encoding)
+        self.auth_password = _encode(auth_password,codec=encoding)
         self.connect_timeout = connect_timeout
         self.request_timeout = request_timeout
         self.follow_redirects = follow_redirects
@@ -616,10 +616,10 @@ def _curl_create(max_simultaneous_connections=None):
     return curl
 
 
-def _curl_setup_request(curl, request, buffer, headers):
+def _curl_setup_request(curl, request, buffer, headers,codec='utf-8'):
     curl.setopt(pycurl.URL, request.url)
     curl.setopt(pycurl.HTTPHEADER,
-                [_utf8("%s: %s" % i) for i in request.headers.iteritems()])
+                [_encode("%s: %s" % i,codec=codec) for i in request.headers.iteritems()])
     if request.header_callback:
         curl.setopt(pycurl.HEADERFUNCTION, request.header_callback)
     else:
@@ -634,7 +634,7 @@ def _curl_setup_request(curl, request, buffer, headers):
     curl.setopt(pycurl.CONNECTTIMEOUT, int(request.connect_timeout))
     curl.setopt(pycurl.TIMEOUT, int(request.request_timeout))
     if request.user_agent:
-        curl.setopt(pycurl.USERAGENT, _utf8(request.user_agent))
+        curl.setopt(pycurl.USERAGENT, _encode(request.user_agent,codec=codec))
     else:
         curl.setopt(pycurl.USERAGENT, "Mozilla/5.0 (compatible; pycurl)")
     if request.network_interface:
@@ -718,10 +718,10 @@ def _curl_debug(debug_type, debug_msg):
         logging.debug('%s %r', debug_types[debug_type], debug_msg)
 
 
-def _utf8(value):
+def _encode(value,codec="utf-8"):
     if value is None:
         return value
     if isinstance(value, unicode):
-        return value.encode("utf-8")
+        return value.encode(codec)
     assert isinstance(value, str)
     return value

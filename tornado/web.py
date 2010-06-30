@@ -79,9 +79,10 @@ class RequestHandler(object):
     """
     SUPPORTED_METHODS = ("GET", "HEAD", "POST", "DELETE", "PUT")
 
-    def __init__(self, application, request, transforms=None):
+    def __init__(self, application, request, transforms=None,coding='utf-8'):
         self.application = application
         self.request = request
+        self.coding=coding
         self._headers_written = False
         self._finished = False
         self._auto_finish = True
@@ -167,7 +168,7 @@ class RequestHandler(object):
         elif isinstance(value, int) or isinstance(value, long):
             value = str(value)
         else:
-            value = _utf8(value)
+            value = _encode(value,codec=self.coding)
             # If \n is allowed into the header, it is possible to inject
             # additional headers or split the request. Also cap length to
             # prevent obviously erroneous values.
@@ -205,7 +206,7 @@ class RequestHandler(object):
         values = self.request.arguments.get(name, [])
         # Get rid of any weird control chars
         values = [re.sub(r"[\x00-\x08\x0e-\x1f]", " ", x) for x in values]
-        values = [_unicode(x) for x in values]
+        values = [_unicode(x,codec=self.coding) for x in values]
         if strip:
             values = [x.strip() for x in values]
         return values
@@ -238,8 +239,8 @@ class RequestHandler(object):
         See http://docs.python.org/library/cookie.html#morsel-objects
         for available attributes.
         """
-        name = _utf8(name)
-        value = _utf8(value)
+        name = _encode(name,codec=self.coding)
+        value = _encode(value,codec=self.coding)
         if re.search(r"[\x00-\x20]", name + value):
             # Don't let us accidentally inject bad stuff
             raise ValueError("Invalid cookie %r: %r" % (name, value))
@@ -331,7 +332,7 @@ class RequestHandler(object):
             raise Exception("Cannot redirect after headers have been written")
         self.set_status(301 if permanent else 302)
         # Remove whitespace
-        url = re.sub(r"[\x00-\x20]+", "", _utf8(url))
+        url = re.sub(r"[\x00-\x20]+", "", _encode(url,codec=self.coding))
         self.set_header("Location", urlparse.urljoin(self.request.uri, url))
         self.finish()
 
@@ -347,7 +348,7 @@ class RequestHandler(object):
         if isinstance(chunk, dict):
             chunk = escape.json_encode(chunk)
             self.set_header("Content-Type", "text/javascript; charset=UTF-8")
-        chunk = _utf8(chunk)
+        chunk = _encode(chunk,codec=self.coding)
         self._write_buffer.append(chunk)
 
     def render(self, template_name, **kwargs):
@@ -363,7 +364,7 @@ class RequestHandler(object):
         html_bodies = []
         for module in getattr(self, "_active_modules", {}).itervalues():
             embed_part = module.embedded_javascript()
-            if embed_part: js_embed.append(_utf8(embed_part))
+            if embed_part: js_embed.append(_encode(embed_part,codec=self.coding))
             file_part = module.javascript_files()
             if file_part:
                 if isinstance(file_part, basestring):
@@ -371,7 +372,7 @@ class RequestHandler(object):
                 else:
                     js_files.extend(file_part)
             embed_part = module.embedded_css()
-            if embed_part: css_embed.append(_utf8(embed_part))
+            if embed_part: css_embed.append(_encode(embed_part,codec=self.coding))
             file_part = module.css_files()
             if file_part:
                 if isinstance(file_part, basestring):
@@ -379,9 +380,9 @@ class RequestHandler(object):
                 else:
                     css_files.extend(file_part)
             head_part = module.html_head()
-            if head_part: html_heads.append(_utf8(head_part))
+            if head_part: html_heads.append(_encode(head_part,codec=self.coding))
             body_part = module.html_body()
-            if body_part: html_bodies.append(_utf8(body_part))
+            if body_part: html_bodies.append(_encode(body_part,codec=self.coding))
         if js_files:
             # Maintain order of JavaScript files given by modules
             paths = []
@@ -1449,19 +1450,19 @@ class URLSpec(object):
 
 url = URLSpec
 
-def _utf8(s):
+def _encode(s,codec='utf-8'):
     if isinstance(s, unicode):
-        return s.encode("utf-8")
+        return s.encode(codec)
     assert isinstance(s, str)
     return s
 
 
-def _unicode(s):
+def _unicode(s,codec='utf-8'):
     if isinstance(s, str):
         try:
-            return s.decode("utf-8")
+            return s.decode(codec)
         except UnicodeDecodeError:
-            raise HTTPError(400, "Non-utf8 argument")
+            raise HTTPError(400, "Non-%s argument" % codec)
     assert isinstance(s, unicode)
     return s
 
